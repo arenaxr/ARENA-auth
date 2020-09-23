@@ -140,7 +140,7 @@ app.post('/', (req, res) => {
             });
             // TODO(mwfarb): hook into authorization ACL, for now allow all pub/sub for 1 day
             auth_type = 'all';
-            console.log('Verified Google user:', auth_type, req.body.username, identity);
+            console.log('Verified Google user:', auth_type, req.body.username, identity.email);
             break;
         case "anonymous":
             verifyAnon(req.body.username).catch((error) => {
@@ -167,6 +167,7 @@ app.post('/', (req, res) => {
 });
 
 server.listen(config.port, () => {
-    console.log('ARENA MQTT-Auth app listening at port ${config.port}.');
+    console.log(`ARENA MQTT-Auth app listening at port ${config.port}`);
     console.log('Press Ctrl+C to quit.');
 });
+
