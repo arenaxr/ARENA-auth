@@ -103,6 +103,7 @@ dist
 # TernJS port file
 .tern-port
 
-# User-configurable settings for auth service
+# User-configurable/test settings for auth service
 config.json
-
+*.crt
+*.key

@@ -1,20 +1,19 @@
-'use strict';
+/* jshint esversion: 8 */
+/* jshint node: true */
 
-// TODO(mwfarb): migrate user-configurable settings to config
-const CLIENT_ID = '173603117246-7lehsb3tpq4i17e7sla5bue1an4ps9t6.apps.googleusercontent.com';
-const PORT = 8888;
+'use strict';
 
 const express = require('express');
 const logger = require('morgan');
 const args = require('minimist')(process.argv.slice(2));
 const config = require(args.c); // use arg '-c path/config.json' for config file
-const https = require('https')
-const fs = require('fs')
-const { JWT, JWK } = require('jose')
+const https = require('https');
+const fs = require('fs');
+const { JWT, JWK } = require('jose');
 const bodyParser = require('body-parser');
 const { OAuth2Client } = require('google-auth-library');
 
-const gOauthClient = new OAuth2Client(CLIENT_ID);
+const gOauthClient = new OAuth2Client(config.gauth_clientid);
 const app = express();
 
 const key = fs.readFileSync(config.keypath);
@@ -40,25 +39,33 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
     if (pub && pub.length > 0) {
         claims.publ = pub;
     }
-    var iat = new Date(new Date - 20000); // allow for clock skew between issuer and broker
+    var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
     return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
 }
 
-async function verifyGToken(username, token) {
+async function verifyGToken(token) {
+    // validate Google id token before issuing mqtt-token
     const ticket = await gOauthClient.verifyIdToken({
         idToken: token,
-        audience: CLIENT_ID,
+        audience: config.gauth_clientid
     });
     return ticket.getPayload();
 }
 
-function generateMqttToken(req, jwt) {
+function verifyAnon(username) {
+    // check user announced themselves an anonymous
+    if (!username.startsWith("anon-")) {
+        throw new Error('Anonymous users must prefix usernames with "anon-"');
+    }
+}
+
+function generateMqttToken(req, jwt, type) {
     var realm = config.realm;
     var scene = req.body.scene;
     var auth_name = req.body.username;
     var scene_obj = realm + "/s/" + scene + "/#";
     var scene_admin = realm + "/admin/s/" + scene + "/#";
-    switch (auth_name) {
+    switch (type) {
         // service-level scenarios
         case 'persistdb':
             // persistance service subs all scene, pubs status
@@ -108,11 +115,12 @@ function generateMqttToken(req, jwt) {
             jwt = signMqttToken(auth_name, '1 day',
                 [scene_obj], user_objects);
             break;
-        default:
-            // TODO(mwfarb): hook into authorization ACL, for now allow all pub/sub for 1 day
-            //jwt = null;
+        case 'all':
             jwt = signMqttToken(auth_name, '1 day',
                 ["#"], ["#"]);
+            break;
+        default:
+            jwt = null;
             break;
     }
     return { auth_name, jwt };
@@ -120,20 +128,31 @@ function generateMqttToken(req, jwt) {
 
 // main auth endpoint
 app.post('/', (req, res) => {
-    console.log("Request:", req.body.username)
-
+    console.log("Request:", req.body.id_auth, req.body.username);
+    var auth_type = 'none';
     // first, verify the id-token
     switch (req.body.id_auth) {
         case "google":
-            let identity = verifyGToken(req.body.username, req.body.id_token).catch((error) => {
+            let identity = verifyGToken(req.body.id_token).catch((error) => {
                 console.error(error);
                 res.json({ error: error });
                 return;
             });
-            console.log('Verified Google user', identity);
+            // TODO(mwfarb): hook into authorization ACL, for now allow all pub/sub for 1 day
+            auth_type = 'all';
+            console.log('Verified Google user:', auth_type, req.body.username, identity);
+            break;
+        case "anonymous":
+            verifyAnon(req.body.username).catch((error) => {
+                console.error(error);
+                res.json({ error: error });
+                return;
+            });
+            auth_type = 'viewer';
+            console.warn('Allowing anonymous user:', auth_type, req.body.username);
             break;
         default:
-            error = ("Invalid authorization provider name:", req.body.id_auth);
+            var error = ("Invalid authorization provider name:", req.body.id_auth);
             console.error(error);
             res.json({ error: error });
             return;
@@ -143,11 +162,11 @@ app.post('/', (req, res) => {
 
     // third, generate mqtt-token with ACL-level permissions
     var auth_name, jwt;
-    ({ auth_name, jwt } = generateMqttToken(req, jwt));
+    ({ auth_name, jwt } = generateMqttToken(req, jwt, auth_type));
     res.json({ username: auth_name, token: jwt });
 });
 
-server.listen(PORT, () => {
-    console.log(`MQTT-Auth app listening at port ${PORT}.`);
+server.listen(config.port, () => {
+    console.log('ARENA MQTT-Auth app listening at port ${config.port}.');
     console.log('Press Ctrl+C to quit.');
 });
