@@ -54,8 +54,8 @@ async function verifyGToken(token) {
 
 function verifyAnon(username) {
     // check user announced themselves an anonymous
-    if (!username.startsWith("anon-")) {
-        throw new Error('Anonymous users must prefix usernames with "anon-"');
+    if (!username.startsWith("anonymous-")) {
+        throw 'Anonymous users must prefix usernames with "anonymous-"';
     }
 }
 
@@ -127,27 +127,30 @@ function generateMqttToken(req, jwt, type) {
 }
 
 // main auth endpoint
-app.post('/', (req, res) => {
+app.post('/', async (req, res) => {
     console.log("Request:", req.body.id_auth, req.body.username);
     var auth_type = 'none';
     // first, verify the id-token
     switch (req.body.id_auth) {
         case "google":
-            let identity = verifyGToken(req.body.id_token).catch((error) => {
+            let identity = await verifyGToken(req.body.id_token).catch((error) => {
                 console.error(error);
+                res.status(403);
                 res.json({ error: error });
                 return;
             });
-            // TODO(mwfarb): hook into authorization ACL, for now allow all pub/sub for 1 day
             auth_type = 'all';
             console.log('Verified Google user:', auth_type, req.body.username, identity.email);
             break;
         case "anonymous":
-            verifyAnon(req.body.username).catch((error) => {
+            try {
+                verifyAnon(req.body.username);
+            } catch(error) {
                 console.error(error);
+                res.status(403);
                 res.json({ error: error });
                 return;
-            });
+            }
             auth_type = 'viewer';
             console.warn('Allowing anonymous user:', auth_type, req.body.username);
             break;
