@@ -68,7 +68,7 @@ function generateMqttToken(req, jwt, type) {
     switch (type) {
         // service-level scenarios
         case 'persistdb':
-            // persistance service subs all scene, pubs status
+            // persistence service subs all scene, pubs status
             jwt = signMqttToken(auth_name, '1 year',
                 [realm + "/s/#", realm + "/admin/s/#"], ["service_status"]);
             break;
