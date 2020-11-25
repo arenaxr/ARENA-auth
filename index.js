@@ -27,8 +27,8 @@ app.use(logger('dev')); // TODO(mwfarb): switch to 'common'
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Origin", "*`);;
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept`);;
     next();
 });
 
@@ -56,9 +56,9 @@ async function verifyGToken(token) {
 
 function verifyAnon(username) {
     // check user announced themselves an anonymous
-    if (!username.startsWith("anonymous-")) {
+    if (!username.startsWith("anonymous-`);) {
         throw 'Anonymous users must prefix usernames with "anonymous-"';
-    }
+}
 }
 
 function generateMqttToken(req, jwt, type) {
@@ -69,8 +69,6 @@ function generateMqttToken(req, jwt, type) {
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
     const auth_name = req.body.username;
-    let scene_obj = `${realm}/s/${scene}/#`;
-    let scene_admin = `${realm}/admin/s/${scene}/#`;
     let subs = [];
     let pubs = [];
     switch (type) {
@@ -98,27 +96,53 @@ function generateMqttToken(req, jwt, type) {
             break;
         case 'admin':
             // admin is normal scene pub/sub, plus admin tasks
-            subs.push([scene_admin, scene_obj]);
-            pubs.push([scene_admin, scene_obj]);
+            subs.push([`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`]);
+            pubs.push([`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`]);
             break;
         case 'editor':
             // editor is normal scene pub/sub
-            subs.push(scene_obj);
-            pubs.push(scene_obj);
+            subs.push(`${realm}/s/${scene}/#`);
+            pubs.push(`${realm}/s/${scene}/#`);
             break;
         case 'viewer':
-            // viewer is sub scene, pub cam/controllers
-            subs.push(scene_obj);
-            if (camid) {
-                pubs.push(`${realm}/s/${scene}/${camid}`);
-                pubs.push(`${realm}/s/${scene}/face`);
+            // TODO: this is a default temp set of perms, replace with arena-account ACL
+            // user presence objects
+            if (scene) {
+                subs.push(`${realm}/s/${scene}/#`);
+                if (camid) {
+                    pubs.push(`${realm}/s/${scene}/${camid}/#`);
+                    pubs.push(`${realm}/g/a/${camid}/#`);
+                    pubs.push(`$topic/vio/${camid}/#`);
+                }
+                if (ctrlid1) {
+                    pubs.push(`${realm}/s/${scene}/${ctrlid1}/#`);
+                }
+                if (ctrlid2) {
+                    pubs.push(`${realm}/s/${scene}/${ctrlid2}/#`);
+                }
+            } else {
+                subs.push(`${realm}/s/#`);
+                pubs.push(`${realm}/s/#`);
+                subs.push(`${realm}/g/a/#`);
+                pubs.push(`${realm}/g/a/#`);
             }
-            if (ctrlid1) {
-                pubs.push(`${realm}/s/${scene}/${ctrlid1}`);
+            // chat messages
+            if (userid) {
+                // receive private messages: Read
+                subs.push(`${realm}/g/c/p/${userid}/#`);
+                // receive open messages to everyone and/or scene: Read
+                subs.push(`${realm}/g/c/o/#`);
+                // send open messages (chat keepalive, messages to all/scene): Write
+                pubs.push(`${realm}/g/c/o/${userid}`);
+                // private messages to user: Write
+                pubs.push(`${realm}/g/c/p/+/${userid}`);
             }
-            if (ctrlid2) {
-                pubs.push(`${realm}/s/${scene}/${ctrlid2}`);
-            }
+            // runtime
+            subs.push(`${realm}/proc/#`);
+            pubs.push(`${realm}/proc/#`);
+            // network graph
+            subs.push(`$NETWORK/#`);
+            pubs.push(`$NETWORK/#`);
             break;
         default:
             break;
