@@ -7,7 +7,6 @@ const express = require('express');
 const logger = require('morgan');
 const args = require('minimist')(process.argv.slice(2));
 const config = require(args.c); // use arg '-c path/config.json' for config file
-const https = require('https');
 const fs = require('fs');
 const { JWT, JWK } = require('jose');
 const bodyParser = require('body-parser');
@@ -16,21 +15,12 @@ const { OAuth2Client } = require('google-auth-library');
 const gOauthClient = new OAuth2Client(config.gauth_clientid);
 const app = express();
 
-const key = fs.readFileSync(config.keypath);
-const cert = fs.readFileSync(config.certpath);
-//const jwk = JWK.asKey({ kty: 'oct', k: config.secret });
 const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
-const server = https.createServer({ key: key, cert: cert }, app);
 
 // engine setup
 app.use(logger('dev')); // TODO(mwfarb): switch to 'common'
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-});
 
 function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
     var claims = { "sub": user };
@@ -196,7 +186,7 @@ app.post('/', async (req, res) => {
     res.json({ username: auth_name, token: jwt });
 });
 
-server.listen(config.port, () => {
+app.listen(config.port, () => {
     console.log(`ARENA MQTT-Auth app listening at port ${config.port}`);
     console.log('Press Ctrl+C to quit.');
 });
