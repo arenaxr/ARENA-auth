@@ -192,8 +192,8 @@ app.post('/', async (req, res) => {
     // third, generate mqtt-token with ACL-level permissions
     var auth_name, jwt;
     ({ auth_name, jwt } = generateMqttToken(req, jwt, auth_type));
+    res.cookie('mqtt_token', jwt, { httpOnly: true, secure: true });
     res.json({ username: auth_name, token: jwt });
-    res.cookie('mqtt_token', jwt, { httpOnly: true });
 });
 
 server.listen(config.port, () => {
