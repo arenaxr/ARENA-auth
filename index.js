@@ -62,68 +62,68 @@ function verifyAnon(username) {
 }
 
 function generateMqttToken(req, jwt, type) {
-    var realm = req.body.realm;
-    var scene = req.body.scene;
-    var userid = req.body.userid;
-    var camid = req.body.camid;
-    var ctrlid1 = req.body.ctrlid1;
-    var ctrlid2 = req.body.ctrlid2;
-    var auth_name = req.body.username;
-    var scene_obj = `${realm}/s/${scene}/#`;
-    var scene_admin = `${realm}/admin/s/${scene}/#`;
+    const realm = req.body.realm;
+    const scene = req.body.scene;
+    const userid = req.body.userid;
+    const camid = req.body.camid;
+    const ctrlid1 = req.body.ctrlid1;
+    const ctrlid2 = req.body.ctrlid2;
+    const auth_name = req.body.username;
+    let scene_obj = `${realm}/s/${scene}/#`;
+    let scene_admin = `${realm}/admin/s/${scene}/#`;
+    let subs = [];
+    let pubs = [];
     switch (type) {
         // service-level scenarios
         case 'persistdb':
             // persistence service subs all scene, pubs status
-            jwt = signMqttToken(auth_name, '1 year',
-                [`${realm}/s/#`, `${realm}/admin/s/#`], ["service_status"]);
+            subs.push([`${realm}/s/#`, `${realm}/admin/s/#`]);
+            pubs.push("service_status");
             break;
         case 'sensorthing':
             // realm/g/<session>/uwb or realm/g/<session>/vio (global data)
-            jwt = signMqttToken(auth_name, '1 year',
-                [`${realm}/g/#`], [`${realm}/g/#`]);
+            subs.push(`${realm}/g/#`);
+            pubs.push(`${realm}/g/#`);
             break;
         case 'sensorcamera':
             // realm/g/a/<cameras> (g=global, a=anchors)
-            jwt = signMqttToken(auth_name, '1 year',
-                [`${realm}/g/a/#`], [`${realm}/g/a/#`]);
+            subs.push(`${realm}/g/a/#`);
+            pubs.push(`${realm}/g/a/#`);
             break;
 
         // user-level scenarios
         case 'all':
-            jwt = signMqttToken(auth_name, '1 day',
-                ["#"], ["#"]);
+            subs.push("#");
+            pubs.push("#");
             break;
         case 'admin':
             // admin is normal scene pub/sub, plus admin tasks
-            jwt = signMqttToken(auth_name, '1 day',
-                [scene_admin, scene_obj], [scene_admin, scene_obj]);
+            subs.push([scene_admin, scene_obj]);
+            pubs.push([scene_admin, scene_obj]);
             break;
         case 'editor':
             // editor is normal scene pub/sub
-            jwt = signMqttToken(auth_name, '1 day',
-                [scene_obj], [scene_obj]);
+            subs.push(scene_obj);
+            pubs.push(scene_obj);
             break;
         case 'viewer':
-            var user_objects = [];
+            // viewer is sub scene, pub cam/controllers
+            subs.push(scene_obj);
             if (camid) {
-                user_objects.push(`${realm}/s/${scene}/${camid}`);
-                user_objects.push(`${realm}/s/${scene}/face`);
+                pubs.push(`${realm}/s/${scene}/${camid}`);
+                pubs.push(`${realm}/s/${scene}/face`);
             }
             if (ctrlid1) {
-                user_objects.push(`${realm}/s/${scene}/${ctrlid1}`);
+                pubs.push(`${realm}/s/${scene}/${ctrlid1}`);
             }
             if (ctrlid2) {
-                user_objects.push(`${realm}/s/${scene}/${ctrlid2}`);
+                pubs.push(`${realm}/s/${scene}/${ctrlid2}`);
             }
-            // viewer is sub scene, pub cam/controllers
-            jwt = signMqttToken(auth_name, '1 day',
-                [scene_obj], user_objects);
             break;
         default:
-            jwt = null;
             break;
     }
+    jwt = signMqttToken(auth_name, '1 day', subs, pubs);
     return { auth_name, jwt };
 }
 
