@@ -121,7 +121,7 @@ function generateMqttToken(req, jwt, type) {
             // chat messages
             if (userid) {
                 // receive private messages: Read
-                subs.push(`${realm}/g/c/p/${userid}/#`);
+                subs.push(`${realm}/g/c/p/${userid}`);
                 // receive open messages to everyone and/or scene: Read
                 subs.push(`${realm}/g/c/o/#`);
                 // send open messages (chat keepalive, messages to all/scene): Write
