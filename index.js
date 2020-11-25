@@ -18,14 +18,15 @@ const app = express();
 
 const key = fs.readFileSync(config.keypath);
 const cert = fs.readFileSync(config.certpath);
-const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
+const jwk = JWK.asKey({ kty: 'oct', k: config.secret });
+// TODO: merge when docker gens rsa key: const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
 const server = https.createServer({ key: key, cert: cert }, app);
 
 // engine setup
 app.use(logger('dev')); // TODO(mwfarb): switch to 'common'
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(function (req, res, next) {
+app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
@@ -40,7 +41,8 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
         claims.publ = pub;
     }
     var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
-    return JWT.sign(claims, jwk, { "alg": "RS256", "expiresIn": exp, "now": iat });
+    return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
+    // TODO: merge when docker gens rsa key: return JWT.sign(claims, jwk, { "alg": "RS256", "expiresIn": exp, "now": iat });
 }
 
 async function verifyGToken(token) {
@@ -55,74 +57,98 @@ async function verifyGToken(token) {
 function verifyAnon(username) {
     // check user announced themselves an anonymous
     if (!username.startsWith("anonymous-")) {
-        throw 'Anonymous users must prefix usernames with "anonymous-"';
+        throw ('Anonymous users must prefix usernames with "anonymous-"');
     }
 }
 
 function generateMqttToken(req, jwt, type) {
-    var realm = config.realm;
-    var scene = req.body.scene;
-    var auth_name = req.body.username;
-    var scene_obj = realm + "/s/" + scene + "/#";
-    var scene_admin = realm + "/admin/s/" + scene + "/#";
+    const realm = req.body.realm ? req.body.realm : "realm";
+    const scene = req.body.scene;
+    const userid = req.body.userid;
+    const camid = req.body.camid;
+    const ctrlid1 = req.body.ctrlid1;
+    const ctrlid2 = req.body.ctrlid2;
+    const auth_name = req.body.username;
+    let subs = [];
+    let pubs = [];
     switch (type) {
         // service-level scenarios
         case 'persistdb':
             // persistence service subs all scene, pubs status
-            jwt = signMqttToken(auth_name, '1 year',
-                [realm + "/s/#", realm + "/admin/s/#"], ["service_status"]);
+            subs.push([`${realm}/s/#`, `${realm}/admin/s/#`]);
+            pubs.push("service_status");
             break;
         case 'sensorthing':
             // realm/g/<session>/uwb or realm/g/<session>/vio (global data)
-            jwt = signMqttToken(auth_name, '1 year',
-                [realm + "/g/#"], [realm + "/g/#"]);
+            subs.push(`${realm}/g/#`);
+            pubs.push(`${realm}/g/#`);
             break;
         case 'sensorcamera':
             // realm/g/a/<cameras> (g=global, a=anchors)
-            jwt = signMqttToken(auth_name, '1 year',
-                [realm + "/g/a/#"], [realm + "/g/a/#"]);
+            subs.push(`${realm}/g/a/#`);
+            pubs.push(`${realm}/g/a/#`);
             break;
 
         // user-level scenarios
-        case 'graphview':
-            // graph viewer
-            jwt = signMqttToken(auth_name, '1 day',
-                ["$GRAPH"], null);
+        case 'all':
+            subs.push("#");
+            pubs.push("#");
             break;
         case 'admin':
             // admin is normal scene pub/sub, plus admin tasks
-            jwt = signMqttToken(auth_name, '1 day',
-                [scene_admin, scene_obj], [scene_admin, scene_obj]);
+            subs.push([`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`]);
+            pubs.push([`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`]);
             break;
         case 'editor':
             // editor is normal scene pub/sub
-            jwt = signMqttToken(auth_name, '1 day',
-                [scene_obj], [scene_obj]);
+            subs.push(`${realm}/s/${scene}/#`);
+            pubs.push(`${realm}/s/${scene}/#`);
             break;
         case 'viewer':
-            var user_objects = [];
-            if (req.body.camid != undefined) {
-                user_objects.push(realm + "/s/" + scene + "/" + req.body.camid);
-                user_objects.push(realm + "/s/" + scene + "/arena-face-tracker");
+            // TODO: this is a default temp set of perms, replace with arena-account ACL
+            // user presence objects
+            if (scene) {
+                subs.push(`${realm}/s/${scene}/#`);
+                subs.push(`${realm}/g/a/#`);
+                if (camid) {
+                    pubs.push(`${realm}/s/${scene}/${camid}/#`);
+                    pubs.push(`${realm}/g/a/${camid}/#`);
+                    pubs.push(`topic/vio/${camid}/#`);
+                }
+                if (ctrlid1) {
+                    pubs.push(`${realm}/s/${scene}/${ctrlid1}/#`);
+                }
+                if (ctrlid2) {
+                    pubs.push(`${realm}/s/${scene}/${ctrlid2}/#`);
+                }
+            } else {
+                subs.push(`${realm}/s/#`);
+                subs.push(`${realm}/g/a/#`);
+                pubs.push(`${realm}/s/#`);
+                pubs.push(`${realm}/g/a/#`);
             }
-            if (req.body.ctrlid1 != undefined) {
-                user_objects.push(realm + "/s/" + scene + "/" + req.body.ctrlid1);
+            // chat messages
+            if (userid) {
+                // receive private messages: Read
+                subs.push(`${realm}/g/c/p/${userid}/#`);
+                // receive open messages to everyone and/or scene: Read
+                subs.push(`${realm}/g/c/o/#`);
+                // send open messages (chat keepalive, messages to all/scene): Write
+                pubs.push(`${realm}/g/c/o/${userid}`);
+                // private messages to user: Write
+                pubs.push(`${realm}/g/c/p/+/${userid}`);
             }
-            if (req.body.ctrlid2 != undefined) {
-                user_objects.push(realm + "/s/" + scene + "/" + req.body.ctrlid2);
-            }
-            // viewer is sub scene, pub cam/controllers
-            jwt = signMqttToken(auth_name, '1 day',
-                [scene_obj], user_objects);
-            break;
-        case 'all':
-            jwt = signMqttToken(auth_name, '1 day',
-                ["#"], ["#"]);
+            // runtime
+            subs.push(`${realm}/proc/#`);
+            pubs.push(`${realm}/proc/#`);
+            // network graph
+            subs.push(`$NETWORK/#`);
+            pubs.push(`$NETWORK/#`);
             break;
         default:
-            jwt = null;
             break;
     }
+    jwt = signMqttToken(auth_name, '1 day', subs, pubs);
     return { auth_name, jwt };
 }
 
@@ -139,13 +165,13 @@ app.post('/', async (req, res) => {
                 res.json({ error: error });
                 return;
             });
-            auth_type = 'all';
+            auth_type = 'viewer';
             console.log('Verified Google user:', auth_type, req.body.username, identity.email);
             break;
         case "anonymous":
             try {
                 verifyAnon(req.body.username);
-            } catch(error) {
+            } catch (error) {
                 console.error(error);
                 res.status(403);
                 res.json({ error: error });
@@ -173,4 +199,3 @@ server.listen(config.port, () => {
     console.log(`ARENA MQTT-Auth app listening at port ${config.port}`);
     console.log('Press Ctrl+C to quit.');
 });
-
