@@ -27,8 +27,8 @@ app.use(logger('dev')); // TODO(mwfarb): switch to 'common'
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*`);;
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept`);;
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
 });
 
@@ -56,13 +56,13 @@ async function verifyGToken(token) {
 
 function verifyAnon(username) {
     // check user announced themselves an anonymous
-    if (!username.startsWith("anonymous-`);) {
-        throw 'Anonymous users must prefix usernames with "anonymous-"';
-}
+    if (!username.startsWith("anonymous-")) {
+        throw ('Anonymous users must prefix usernames with "anonymous-"');
+    }
 }
 
 function generateMqttToken(req, jwt, type) {
-    const realm = req.body.realm;
+    const realm = req.body.realm ? req.body.realm : "realm";
     const scene = req.body.scene;
     const userid = req.body.userid;
     const camid = req.body.camid;
@@ -109,10 +109,11 @@ function generateMqttToken(req, jwt, type) {
             // user presence objects
             if (scene) {
                 subs.push(`${realm}/s/${scene}/#`);
+                subs.push(`${realm}/g/a/#`);
                 if (camid) {
                     pubs.push(`${realm}/s/${scene}/${camid}/#`);
                     pubs.push(`${realm}/g/a/${camid}/#`);
-                    pubs.push(`$topic/vio/${camid}/#`);
+                    pubs.push(`topic/vio/${camid}/#`);
                 }
                 if (ctrlid1) {
                     pubs.push(`${realm}/s/${scene}/${ctrlid1}/#`);
@@ -122,8 +123,8 @@ function generateMqttToken(req, jwt, type) {
                 }
             } else {
                 subs.push(`${realm}/s/#`);
-                pubs.push(`${realm}/s/#`);
                 subs.push(`${realm}/g/a/#`);
+                pubs.push(`${realm}/s/#`);
                 pubs.push(`${realm}/g/a/#`);
             }
             // chat messages
