@@ -18,7 +18,7 @@ const app = express();
 
 const key = fs.readFileSync(config.keypath);
 const cert = fs.readFileSync(config.certpath);
-const jwk = JWK.asKey({ kty: 'oct', k: config.secret });
+const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
 const server = https.createServer({ key: key, cert: cert }, app);
 
 // engine setup
@@ -40,7 +40,7 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
         claims.publ = pub;
     }
     var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
-    return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
+    return JWT.sign(claims, jwk, { "alg": "RS256", "expiresIn": exp, "now": iat });
 }
 
 async function verifyGToken(token) {
