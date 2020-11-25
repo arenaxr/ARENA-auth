@@ -30,3 +30,4 @@ jobs:
              cd ..
              ./staging.sh stop arena-auth
              ./staging.sh up --force-recreate --build -d arena-auth
+
