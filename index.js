@@ -101,15 +101,16 @@ function generateMqttToken(req, jwt, type) {
                 subs.push(`${realm}/s/${scene}/#`);
                 subs.push(`${realm}/g/a/#`);
                 if (camid) {
+                    pubs.push(`${realm}/s/${scene}/${camid}`);
                     pubs.push(`${realm}/s/${scene}/${camid}/#`);
-                    pubs.push(`${realm}/g/a/${camid}/#`);
-                    pubs.push(`topic/vio/${camid}/#`);
+                    pubs.push(`${realm}/g/a/${camid}`);
+                    pubs.push(`topic/vio/${camid}`);
                 }
                 if (ctrlid1) {
-                    pubs.push(`${realm}/s/${scene}/${ctrlid1}/#`);
+                    pubs.push(`${realm}/s/${scene}/${ctrlid1}`);
                 }
                 if (ctrlid2) {
-                    pubs.push(`${realm}/s/${scene}/${ctrlid2}/#`);
+                    pubs.push(`${realm}/s/${scene}/${ctrlid2}`);
                 }
             } else {
                 subs.push(`${realm}/s/#`);
@@ -132,8 +133,8 @@ function generateMqttToken(req, jwt, type) {
             subs.push(`${realm}/proc/#`);
             pubs.push(`${realm}/proc/#`);
             // network graph
-            subs.push(`$NETWORK/#`);
-            pubs.push(`$NETWORK/#`);
+            subs.push(`$NETWORK/latency`);
+            pubs.push(`$NETWORK/latency`);
             break;
         default:
             break;
