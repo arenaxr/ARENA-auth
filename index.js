@@ -62,34 +62,37 @@ function verifyAnon(username) {
 }
 
 function generateMqttToken(req, jwt, type) {
-    var realm = config.realm;
+    var realm = req.body.realm;
     var scene = req.body.scene;
+    var userid = req.body.userid;
+    var camid = req.body.camid;
+    var ctrlid1 = req.body.ctrlid1;
+    var ctrlid2 = req.body.ctrlid2;
     var auth_name = req.body.username;
-    var scene_obj = realm + "/s/" + scene + "/#";
-    var scene_admin = realm + "/admin/s/" + scene + "/#";
+    var scene_obj = `${realm}/s/${scene}/#`;
+    var scene_admin = `${realm}/admin/s/${scene}/#`;
     switch (type) {
         // service-level scenarios
         case 'persistdb':
             // persistence service subs all scene, pubs status
             jwt = signMqttToken(auth_name, '1 year',
-                [realm + "/s/#", realm + "/admin/s/#"], ["service_status"]);
+                [`${realm}/s/#`, `${realm}/admin/s/#`], ["service_status"]);
             break;
         case 'sensorthing':
             // realm/g/<session>/uwb or realm/g/<session>/vio (global data)
             jwt = signMqttToken(auth_name, '1 year',
-                [realm + "/g/#"], [realm + "/g/#"]);
+                [`${realm}/g/#`], [`${realm}/g/#`]);
             break;
         case 'sensorcamera':
             // realm/g/a/<cameras> (g=global, a=anchors)
             jwt = signMqttToken(auth_name, '1 year',
-                [realm + "/g/a/#"], [realm + "/g/a/#"]);
+                [`${realm}/g/a/#`], [`${realm}/g/a/#`]);
             break;
 
         // user-level scenarios
-        case 'graphview':
-            // graph viewer
+        case 'all':
             jwt = signMqttToken(auth_name, '1 day',
-                ["$GRAPH"], null);
+                ["#"], ["#"]);
             break;
         case 'admin':
             // admin is normal scene pub/sub, plus admin tasks
@@ -103,23 +106,19 @@ function generateMqttToken(req, jwt, type) {
             break;
         case 'viewer':
             var user_objects = [];
-            if (req.body.camid != undefined) {
-                user_objects.push(realm + "/s/" + scene + "/" + req.body.camid);
-                user_objects.push(realm + "/s/" + scene + "/arena-face-tracker");
+            if (camid) {
+                user_objects.push(`${realm}/s/${scene}/${camid}`);
+                user_objects.push(`${realm}/s/${scene}/face`);
             }
-            if (req.body.ctrlid1 != undefined) {
-                user_objects.push(realm + "/s/" + scene + "/" + req.body.ctrlid1);
+            if (ctrlid1) {
+                user_objects.push(`${realm}/s/${scene}/${ctrlid1}`);
             }
-            if (req.body.ctrlid2 != undefined) {
-                user_objects.push(realm + "/s/" + scene + "/" + req.body.ctrlid2);
+            if (ctrlid2) {
+                user_objects.push(`${realm}/s/${scene}/${ctrlid2}`);
             }
             // viewer is sub scene, pub cam/controllers
             jwt = signMqttToken(auth_name, '1 day',
                 [scene_obj], user_objects);
-            break;
-        case 'all':
-            jwt = signMqttToken(auth_name, '1 day',
-                ["#"], ["#"]);
             break;
         default:
             jwt = null;
