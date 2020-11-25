@@ -19,14 +19,14 @@ const app = express();
 const key = fs.readFileSync(config.keypath);
 const cert = fs.readFileSync(config.certpath);
 const jwk = JWK.asKey({ kty: 'oct', k: config.secret });
-//const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
+// TODO: merge when docker gens rsa key: const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
 const server = https.createServer({ key: key, cert: cert }, app);
 
 // engine setup
 app.use(logger('dev')); // TODO(mwfarb): switch to 'common'
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(function (req, res, next) {
+app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
@@ -41,8 +41,8 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
         claims.publ = pub;
     }
     var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
-    //return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
-    return JWT.sign(claims, jwk, { "alg": "RS256", "expiresIn": exp, "now": iat });
+    return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
+    // TODO: merge when docker gens rsa key: return JWT.sign(claims, jwk, { "alg": "RS256", "expiresIn": exp, "now": iat });
 }
 
 async function verifyGToken(token) {
@@ -141,13 +141,13 @@ app.post('/', async (req, res) => {
                 res.json({ error: error });
                 return;
             });
-            auth_type = 'all';
+            auth_type = 'viewer';
             console.log('Verified Google user:', auth_type, req.body.username, identity.email);
             break;
         case "anonymous":
             try {
                 verifyAnon(req.body.username);
-            } catch(error) {
+            } catch (error) {
                 console.error(error);
                 res.status(403);
                 res.json({ error: error });
