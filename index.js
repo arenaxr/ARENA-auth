@@ -193,6 +193,7 @@ app.post('/', async (req, res) => {
     var auth_name, jwt;
     ({ auth_name, jwt } = generateMqttToken(req, jwt, auth_type));
     res.json({ username: auth_name, token: jwt });
+    res.cookie('mqtt_token', jwt, { httpOnly: true });
 });
 
 server.listen(config.port, () => {
