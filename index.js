@@ -33,7 +33,6 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
     }
     var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
     //return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
-    console.debug(claims);
     return JWT.sign(claims, jwk, { "algorithm": "RS256", "expiresIn": exp, "now": iat });
 }
 
