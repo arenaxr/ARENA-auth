@@ -11,6 +11,7 @@ const fs = require('fs');
 const { JWT, JWK } = require('jose');
 const bodyParser = require('body-parser');
 const { OAuth2Client } = require('google-auth-library');
+const btoa = require('btoa');
 
 const gOauthClient = new OAuth2Client(config.gauth_clientid);
 const app = express();
@@ -32,6 +33,7 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
     }
     var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
     //return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
+    console.debug(claims);
     return JWT.sign(claims, jwk, { "algorithm": "RS256", "expiresIn": exp, "now": iat });
 }
 
@@ -59,6 +61,7 @@ function generateMqttToken(req, jwt, type) {
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
     const auth_name = req.body.username;
+    const userhandle = userid + btoa(auth_name);
     let subs = [];
     let pubs = [];
     switch (type) {
@@ -121,13 +124,13 @@ function generateMqttToken(req, jwt, type) {
             // chat messages
             if (userid) {
                 // receive private messages: Read
-                subs.push(`${realm}/g/c/p/${userid}`);
+                subs.push(`${realm}/g/c/p/${userhandle}`);
                 // receive open messages to everyone and/or scene: Read
                 subs.push(`${realm}/g/c/o/#`);
                 // send open messages (chat keepalive, messages to all/scene): Write
-                pubs.push(`${realm}/g/c/o/${userid}`);
+                pubs.push(`${realm}/g/c/o/${userhandle}`);
                 // private messages to user: Write
-                pubs.push(`${realm}/g/c/p/+/${userid}`);
+                pubs.push(`${realm}/g/c/p/+/${userhandle}`);
             }
             // runtime
             subs.push(`${realm}/proc/#`);
@@ -156,8 +159,15 @@ app.post('/', async (req, res) => {
                 res.json({ error: error });
                 return;
             });
+            if (req.username !== identity.email) {
+              let error = "Request username must match auth provider email!";
+              console.error(error);
+              res.status(403);
+              res.json({ error: error });
+              return;
+            }
             auth_type = 'viewer';
-            console.log('Verified Google user:', auth_type, req.body.username, identity.email);
+            console.log('Verified Google user:', auth_type, identity.name, identity.email);
             break;
         case "anonymous":
             try {
