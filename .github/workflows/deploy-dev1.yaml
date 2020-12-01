@@ -23,8 +23,10 @@ jobs:
           script: |
             cd  $TARGET
              git checkout master
+             git reset --hard HEAD
              git pull
              cd ..
              ./staging.sh stop arena-auth
              ./staging.sh up --force-recreate --build -d arena-auth
+             ./staging.sh restart arena-web
 
