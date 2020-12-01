@@ -158,7 +158,7 @@ app.post('/', async (req, res) => {
                 res.json({ error: error });
                 return;
             });
-            if (req.username !== identity.email) {
+            if (req.body.username !== identity.email) {
               let error = "Request username must match auth provider email!";
               console.error(error);
               res.status(403);
