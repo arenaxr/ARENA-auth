@@ -32,7 +32,6 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
         claims.publ = pub;
     }
     var iat = new Date(new Date() - 20000); // allow for clock skew between issuer and broker
-    //return JWT.sign(claims, jwk, { "alg": "HS256", "expiresIn": exp, "now": iat });
     return JWT.sign(claims, jwk, { "algorithm": "RS256", "expiresIn": exp, "now": iat });
 }
 
@@ -102,11 +101,13 @@ function generateMqttToken(req, jwt, type) {
             if (scene) {
                 subs.push(`${realm}/s/${scene}/#`);
                 subs.push(`${realm}/g/a/#`);
-                if (camid) {
+                if (camid) { // probable web browser write
                     pubs.push(`${realm}/s/${scene}/${camid}`);
                     pubs.push(`${realm}/s/${scene}/${camid}/#`);
                     pubs.push(`${realm}/g/a/${camid}`);
                     pubs.push(`topic/vio/${camid}`);
+                } else { // probable cli client write
+                    pubs.push(`${realm}/s/${scene}/#`);
                 }
                 if (ctrlid1) {
                     pubs.push(`${realm}/s/${scene}/${ctrlid1}`);
