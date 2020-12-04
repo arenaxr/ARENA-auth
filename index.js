@@ -136,7 +136,7 @@ function generateMqttToken(req, jwt, type) {
             subs.push(`${realm}/proc/#`);
             pubs.push(`${realm}/proc/#`);
             // network graph
-            subs.push([`$NETWORK`, `$NETWORK/latency`]);
+            subs.push(`$NETWORK`);
             pubs.push(`$NETWORK/latency`);
             break;
         default:
