@@ -106,6 +106,7 @@ function generateMqttToken(req, jwt, type) {
                     pubs.push(`${realm}/s/${scene}/${camid}/#`);
                     pubs.push(`${realm}/g/a/${camid}`);
                     pubs.push(`topic/vio/${camid}`);
+                    pubs.push(`${realm}/s/${scene}/#`); // TODO: remove later, needed for clicks
                 } else { // probable cli client write
                     pubs.push(`${realm}/s/${scene}`);
                     pubs.push(`${realm}/s/${scene}/#`);
