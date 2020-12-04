@@ -66,7 +66,7 @@ function generateMqttToken(req, jwt, type) {
         // service-level scenarios
         case 'persistdb':
             // persistence service subs all scene, pubs status
-            subs.push([`${realm}/s/#`, `${realm}/admin/s/#`]);
+            subs.push(`${realm}/s/#`, `${realm}/admin/s/#`);
             pubs.push("service_status");
             break;
         case 'sensorthing':
@@ -87,8 +87,8 @@ function generateMqttToken(req, jwt, type) {
             break;
         case 'admin':
             // admin is normal scene pub/sub, plus admin tasks
-            subs.push([`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`]);
-            pubs.push([`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`]);
+            subs.push(`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`);
+            pubs.push(`${realm}/admin/s/${scene}/#`, `${realm}/s/${scene}/#`);
             break;
         case 'editor':
             // editor is normal scene pub/sub
@@ -107,6 +107,7 @@ function generateMqttToken(req, jwt, type) {
                     pubs.push(`${realm}/g/a/${camid}`);
                     pubs.push(`topic/vio/${camid}`);
                 } else { // probable cli client write
+                    pubs.push(`${realm}/s/${scene}`);
                     pubs.push(`${realm}/s/${scene}/#`);
                 }
                 if (ctrlid1) {
@@ -160,11 +161,11 @@ app.post('/', async (req, res) => {
                 return;
             });
             if (req.body.username !== identity.email) {
-              let error = "Request username must match auth provider email!";
-              console.error(error);
-              res.status(403);
-              res.json({ error: error });
-              return;
+                let error = "Request username must match auth provider email!";
+                console.error(error);
+                res.status(403);
+                res.json({ error: error });
+                return;
             }
             auth_type = 'viewer';
             console.log('Verified Google user:', auth_type, identity.name, identity.email);
