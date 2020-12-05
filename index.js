@@ -13,7 +13,6 @@ const bodyParser = require('body-parser');
 const { OAuth2Client } = require('google-auth-library');
 const btoa = require('btoa');
 
-const gOauthClient = new OAuth2Client(config.gauth_clientid);
 const app = express();
 
 const jwk = JWK.asKey(fs.readFileSync(config.rsakeypath));
@@ -35,11 +34,12 @@ function signMqttToken(user = null, exp = '1 hour', sub = null, pub = null) {
     return JWT.sign(claims, jwk, { "algorithm": "RS256", "expiresIn": exp, "now": iat });
 }
 
-async function verifyGToken(token) {
+async function verifyGToken(token, clientid) {
+    const gOauthClient = new OAuth2Client(clientid);
     // validate Google id token before issuing mqtt-token
     const ticket = await gOauthClient.verifyIdToken({
         idToken: token,
-        audience: config.gauth_clientid
+        audience: clientid
     });
     return ticket.getPayload();
 }
@@ -155,7 +155,11 @@ app.post('/', async (req, res) => {
     // first, verify the id-token
     switch (req.body.id_auth) {
         case "google":
-            let identity = await verifyGToken(req.body.id_token).catch((error) => {
+        case "google-installed":
+            let clientid = req.body.id_auth == "google" ?
+                config.gauth_clientid : config.gauth_installed_clientid;
+                console.log('clientid', clientid);
+            let identity = await verifyGToken(req.body.id_token, clientid).catch((error) => {
                 console.error(error);
                 res.status(403);
                 res.json({ error: error });
