@@ -59,7 +59,7 @@ function generateMqttToken(req, jwt, type) {
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
     const auth_name = req.body.username;
-    const userhandle = userid + btoa(auth_name);
+    const userhandle = userid + btoa(userid);
     let subs = [];
     let pubs = [];
     switch (type) {
