@@ -54,12 +54,11 @@ function verifyAnon(username) {
 function generateMqttToken(req, jwt, type) {
     const realm = req.body.realm ? req.body.realm : "realm";
     const scene = req.body.scene;
-    const userid =  req.body.userid ? req.body.userid : req.body.username;
+    const userid =  req.body.userid;
     const camid = req.body.camid;
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
-    const auth_name = req.body.username;
-    const userhandle = userid + btoa(userid);
+    const username = req.body.username;
     let subs = [];
     let pubs = [];
     switch (type) {
@@ -125,6 +124,7 @@ function generateMqttToken(req, jwt, type) {
             }
             // chat messages
             if (userid) {
+                const userhandle = userid + btoa(userid);
                 // receive private messages: Read
                 subs.push(`${realm}/g/c/p/${userhandle}`);
                 // receive open messages to everyone and/or scene: Read
@@ -144,8 +144,8 @@ function generateMqttToken(req, jwt, type) {
         default:
             break;
     }
-    jwt = signMqttToken(auth_name, '1 day', subs, pubs);
-    return { auth_name, jwt };
+    jwt = signMqttToken(username, '1 day', subs, pubs);
+    return { username, jwt };
 }
 
 // main auth endpoint
@@ -197,10 +197,10 @@ app.post('/', async (req, res) => {
     // TODO(mwfarb): second, pull/create user record and associate id from token with it
 
     // third, generate mqtt-token with ACL-level permissions
-    var auth_name, jwt;
-    ({ auth_name, jwt } = generateMqttToken(req, jwt, auth_type));
+    var username, jwt;
+    ({ username, jwt } = generateMqttToken(req, jwt, auth_type));
     res.cookie('mqtt_token', jwt, { maxAge: 86400000, httpOnly: true, secure: true });
-    res.json({ username: auth_name, token: jwt });
+    res.json({ username: username, token: jwt });
 });
 
 app.listen(config.port, () => {
