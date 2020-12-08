@@ -54,7 +54,7 @@ function verifyAnon(username) {
 function generateMqttToken(req, jwt, type) {
     const realm = req.body.realm ? req.body.realm : "realm";
     const scene = req.body.scene;
-    const userid =  req.body.userid ? req.body.userid : req.body.id_auth;
+    const userid =  req.body.userid ? req.body.userid : req.body.username;
     const camid = req.body.camid;
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
