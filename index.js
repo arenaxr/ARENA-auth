@@ -96,6 +96,7 @@ function generateMqttToken(req, jwt, type) {
             break;
         case 'viewer':
             // TODO: this is a default temp set of perms, replace with arena-account ACL
+            scene = null; // TODO (mwfarb): open scene permissions to facilitate namespace transition
             // user presence objects
             if (scene) {
                 subs.push(`${realm}/s/${scene}/#`);
