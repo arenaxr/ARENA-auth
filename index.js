@@ -53,8 +53,8 @@ function verifyAnon(username) {
 
 function generateMqttToken(req, jwt, type) {
     const realm = req.body.realm ? req.body.realm : "realm";
-    const scene = req.body.scene;
-    const userid =  req.body.userid;
+    const scene = null; //  req.body.scene; TODO (mwfarb): open scene permissions to facilitate namespace transition
+    const userid = req.body.userid;
     const camid = req.body.camid;
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
@@ -96,7 +96,6 @@ function generateMqttToken(req, jwt, type) {
             break;
         case 'viewer':
             // TODO: this is a default temp set of perms, replace with arena-account ACL
-            scene = null; // TODO (mwfarb): open scene permissions to facilitate namespace transition
             // user presence objects
             if (scene) {
                 subs.push(`${realm}/s/${scene}/#`);
@@ -145,6 +144,8 @@ function generateMqttToken(req, jwt, type) {
         default:
             break;
     }
+    subs.sort();
+    pubs.sort();
     jwt = signMqttToken(username, '1 day', subs, pubs);
     return { username, jwt };
 }
@@ -159,7 +160,7 @@ app.post('/', async (req, res) => {
         case "google-installed":
             let clientid = req.body.id_auth == "google" ?
                 config.gauth_clientid : config.gauth_installed_clientid;
-                console.log('clientid', clientid);
+            console.log('clientid', clientid);
             let identity = await verifyGToken(req.body.id_token, clientid).catch((error) => {
                 console.error(error);
                 res.status(403);
