@@ -51,6 +51,12 @@ function verifyAnon(username) {
     }
 }
 
+function readableUsernameEncode(username) {
+    // TODO (mwfarb): replace username with deterministic arena-account name
+    var replaced = username.replace("@", "_at_");
+    return encodeURIComponent(replaced);
+}
+
 function generateMqttToken(req, jwt, type) {
     const realm = req.body.realm ? req.body.realm : "realm";
     const scene = null; //  req.body.scene; TODO (mwfarb): open scene permissions to facilitate namespace transition
@@ -58,7 +64,7 @@ function generateMqttToken(req, jwt, type) {
     const camid = req.body.camid;
     const ctrlid1 = req.body.ctrlid1;
     const ctrlid2 = req.body.ctrlid2;
-    const username = req.body.username;
+    const enc_username = readableUsernameEncode(req.body.username);
     let subs = [];
     let pubs = [];
     switch (type) {
@@ -96,6 +102,10 @@ function generateMqttToken(req, jwt, type) {
             break;
         case 'viewer':
             // TODO: this is a default temp set of perms, replace with arena-account ACL
+            if (req.body.id_auth.startsWith('google')) {
+                subs.push(`${realm}/s/${enc_username}/#`);
+                pubs.push(`${realm}/s/${enc_username}/#`);
+            }
             // user presence objects
             if (scene) {
                 subs.push(`${realm}/s/${scene}/#`);
@@ -146,8 +156,8 @@ function generateMqttToken(req, jwt, type) {
     }
     subs.sort();
     pubs.sort();
-    jwt = signMqttToken(username, '1 day', subs, pubs);
-    return { username, jwt };
+    jwt = signMqttToken(enc_username, '1 day', subs, pubs);
+    return { username: enc_username, jwt: jwt };
 }
 
 // main auth endpoint
